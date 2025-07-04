@@ -1,7 +1,11 @@
 {
-    "extends" : "@repo/typescript-config/base.json",
+    "extends": "@repo/typescript-config/base.json",
     "compilerOptions": {
-        "rootDir": "./src",
-        "outDir": "./dist"
+      "module": "NodeNext",             // ✅ Use ESM modules
+      "moduleResolution": "NodeNext", // ✅ Resolve using Node.js rules
+      "target": "ES2020",
+      "rootDir": "./src",
+      "outDir": "./dist"
     }
-}
+  }
+  
