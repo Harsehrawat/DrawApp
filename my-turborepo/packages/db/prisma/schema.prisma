@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,32 +7,30 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 model User {
-  id    String  @id @default(uuid())
-  email String @unique
-  password String
-  name  String
-  avatarPhoto String? // we'll not store the photo rahter store the url of the photo in the DB
-  rooms   Room[]
-  chat  Chat[]
+  id          String  @id @default(uuid())
+  email       String  @unique
+  password    String
+  name        String
+  avatarPhoto String?
+  chat        Chat[]
+  rooms       Room[]
 }
 
 model Room {
-  id    Int   @id @default(autoincrement())
-  slug  String  @unique
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique
   createdAt DateTime @default(now())
   adminId   String
-  admin   User  @relation(fields: [adminId] , references: [id])
-  chat  Chat[]
+  chat      Chat[]
+  admin     User     @relation(fields: [adminId], references: [id])
 }
 
 model Chat {
-  id    Int   @id @default(autoincrement())
-  message String 
-  roomId    Int
+  id      Int    @id @default(autoincrement())
+  message String
+  roomId  Int
   userId  String
-
-  room Room   @relation(fields: [roomId] , references: [id])
-  user User   @relation(fields: [userId] , references: [id])
+  room    Room   @relation(fields: [roomId], references: [id])
+  user    User   @relation(fields: [userId], references: [id])
 }
