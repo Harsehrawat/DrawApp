@@ -1,0 +1,45 @@
+*Used pnpm rather than npm
+*made it a turbo-repo project
+
+*added package.json to http-backend and ws-backend using npm init -y inside apps directory
+
+-- Steps i did before writing actual code --
+* initialised an empty turbo repo (npx create turbo@latest)
+* deleted the docs apps
+* added http-backend, ws-backend 
+* added package.json in both the places
+* added tsconfig.json in both the places and imported it from @repo/typescript-config/base.json 
+* added @repo/typescript-config as a dependency in both ws-backend and http-backend 
+* added a build, dev and start to both the places n 
+* update the turbo-config in both the places 
+* initialise a http server, a websocket server 
+* initialise a new 'db' package where you write the schema of the project
+* import the db package into the http-layer where u'll start putting the things in the db 
+* add a common package where we add the zod schema and the JWT_SECRET .
+
+
+-- inside db --
+* pnpm install prisma -> npx prisma init -> get postgreDB from neon.tech -> npx prisma migrate dev --name init_schema
+
+-- IMPORTANT SET-UP --
+* i was getting error in imprt and exprot of packages/ folder and http & ws backend file 
+* So, i created ./dist/index.js as export for these pacakges/module rather than export as ./src/index.ts 
+* Other thing inside my Package.json added "type": "module" for the files importing them (like http & we backend)
+* And ( "compilerOptions": { ) added these in packages/ folders tsconfig.json and importing files tsconfig.json 
+      "module": "NodeNext",             // ✅ Fix here
+      "moduleResolution": "NodeNext",   // ✅ Must match
+      "target": "ES2020",               // ✅ Modern target
+      "rootDir": "./src",
+      "outDir": "./dist"
+    } )
+
+
+-- http-backend Logic --
+* zod validation : to get error messages from zod validation , 
+  //--> code logic :
+    verifyZod.error.errors.map((err) => ({ // verifyZod.error.errors is an array of validation issues.
+    field: err.path[0],     // err.path[0] = field name (e.g. "username")
+    message: err.message // gets message declared for that zod field
+    }));
+    <--// 
+
