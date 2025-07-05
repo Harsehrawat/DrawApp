@@ -1,6 +1,6 @@
 import { WebSocketServer } from "ws";
 import { JWT_SECRET } from "@repo/backend-common/config";
-import { CreateUserSchema, SigninSchema, CreateRoomSchema } from "@repo/common/config";
+import { CreateUserSchema, SignInSchema, CreateRoomSchema } from "@repo/common/config";
 import { prismaClient } from "@repo/db/config";
 
 const wss = new WebSocketServer({port : 8081});
