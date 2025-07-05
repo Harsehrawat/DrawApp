@@ -138,6 +138,13 @@ app.post("/api/createroom",middleware, async (req: AuthenticatedRequest,res: Res
             res.json({success: false, message: "Unauthorized"});
             return;
         }
+        const slug_Duplicacy = await prismaClient.room.findFirst({
+            where: {slug: parsedInputs.data.name}
+        })
+        if(slug_Duplicacy){
+            res.status(400).json({ success: false, message: "Room with this name is already active !"});
+            return;
+        }
         const room = await prismaClient.room.create({
             data: {
                 slug: parsedInputs.data?.name,
