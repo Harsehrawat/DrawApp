@@ -6,6 +6,9 @@ import { prismaClient } from "@repo/db/config";
 import { ZodIssue} from "zod";
 import jwt  from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import { middleware, AuthenticatedRequest } from "./middleware.js";
+import { Request,Response,NextFunction } from "express";
+import { success } from "zod/v4";
 
 const app = express();
 app.use(express.json());
@@ -58,7 +61,8 @@ app.post("/api/signup", async (req, res) => {
 
         res.status(200).json({
             success: true,
-            message: "User signup successful"
+            message: "User signup successful",
+            userId: user.id
         });
         return;
     } catch (e) {
@@ -115,6 +119,38 @@ app.post("/api/signin", async (req,res)=>{
     }
 })
 
+
+app.post("/api/createroom",middleware, async (req: AuthenticatedRequest,res: Response)=>{
+    // now as i am using AuthenticatedRequest interface which contains the field userId, i can directly use req.userId
+    const parsedInputs = CreateRoomSchema.safeParse(req.body);
+    if(!parsedInputs.success){
+        // get errors
+        const errors = parsedInputs.error.errors.map( (err) => ({
+            field: err.path[0],
+            message: err.message
+        }))
+        res.status(403).json({ success: false, message: errors});
+        return;
+    }
+    // successful zod validation : move to room creation using req.userId received from middleware
+    try{
+        if(!req.userId){
+            res.json({success: false, message: "Unauthorized"});
+            return;
+        }
+        const room = await prismaClient.room.create({
+            data: {
+                slug: parsedInputs.data?.name,
+                adminId: req.userId! // non-null promised
+            }
+        })
+        res.json({ success: true, message: "Room Created !", roomId: room.id , roomSlug: room.slug});
+        return;
+    }catch(e){
+        console.log("error at /api/createRoom, error : "+e);
+        res.status(500).json({success: false, message: "Server Down"});
+    }
+})
 
 
 
