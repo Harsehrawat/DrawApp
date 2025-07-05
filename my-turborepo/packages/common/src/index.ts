@@ -40,5 +40,5 @@ export const CreateRoomSchema = z.object({
   name: z.string()
     .trim()
     .min(3, "Room name must be at least 3 characters")
-    .max(10, "Room name must be at most 10 characters")
+    .max(25, "Room name must be at most 10 characters")
 });
