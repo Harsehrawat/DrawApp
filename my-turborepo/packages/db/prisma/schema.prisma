@@ -29,6 +29,7 @@ model Room {
 model Chat {
   id      Int    @id @default(autoincrement())
   message String
+  createdAt DateTime @default(now())
   roomId  Int
   userId  String
   room    Room   @relation(fields: [roomId], references: [id])
