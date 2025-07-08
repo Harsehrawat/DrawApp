@@ -44,5 +44,14 @@
     <--// 
 
 
+-- ws-backend Logic --
+For ws.on("connection"), follow below steps:
+1. queryParams from url
+2. token extract from queryParams
+3. validate token and return userId
+4. perform operations for "join_room" , "chat" and "leave_room" 
+5. input expected for "join_room" and "leave_room": { "type" ,"roomId"};
+5. input expected for "chat": { "type" ,"roomId" ,"message" };
+
 * In my ws/index.ts , currently i am first sending any new msg to DB then broadcasting : slow 
                     Opitmal Approach: Store it in a queue, broadcast the message while queue gets to db asynchronously
