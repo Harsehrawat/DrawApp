@@ -55,3 +55,5 @@ For ws.on("connection"), follow below steps:
 
 * In my ws/index.ts , currently i am first sending any new msg to DB then broadcasting : slow 
                     Opitmal Approach: Store it in a queue, broadcast the message while queue gets to db asynchronously
+
+* In my "chat" ws-backend, i am now handling chats via processQueue which will handle db entry in background, meanwhile i'd broadcast the message to users 
