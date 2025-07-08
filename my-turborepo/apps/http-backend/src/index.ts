@@ -156,6 +156,7 @@ app.post("/api/createroom",middleware, async (req: AuthenticatedRequest,res: Res
     }catch(e){
         console.log("error at /api/createRoom, error : "+e);
         res.status(500).json({success: false, message: "Server Down"});
+        return;
     }
 });
 
@@ -163,6 +164,8 @@ app.get("/api/chat/:roomId", async (req,res)=>{
     const roomId = Number (req.params.roomId);
     if(!roomId){
         console.warn(`error at /api/chat/:roomId, error: No RoomId received!`);
+        res.status(404).json({ success: false, message: `This Room Doesn't Exist`});
+        return;
     }
     try{
         const messages = await prismaClient.chat.findMany({
@@ -172,13 +175,43 @@ app.get("/api/chat/:roomId", async (req,res)=>{
                 id: "desc"
             }
         });
-        res.json({ messages});
+        res.status(200).json({success: true, messages});
+        return;
     }catch(e){
         console.warn(`error at /api/chat/:roomId, error: ${e}`);
     }
-    
+});
 
-})
+app.get("/api/chat/:roomSlug", async (req,res)=>{
+    const roomSlug = req.params.roomSlug;
+    if(!roomSlug){
+        console.warn(`error at /api/chat/:roomSlug, error: No roomSlug received!`);
+        res.status(400).json({ success: false, message: 'Invalid Input, Missing roomSlug'});
+        return;
+    }
+    const room = await prismaClient.room.findUnique({ where: {slug: roomSlug}});
+    if(!room){
+        console.warn(`'error at /api/chat/:roomSlug, error: No such room found with roomSlug: ${roomSlug}`);
+        res.status(400).json({ success: false, message: `Invalid Input, This Room Doesn't Exist`});
+        return;
+    }
+    try{
+        const messages = await prismaClient.chat.findMany({
+            where: { roomId: room.id },
+            take: 50,
+            orderBy: {
+                id: "desc"
+            }
+        });
+        res.status(200).json({success: true, messages});
+        return;
+    }catch(e){
+        console.warn(`error at /api/chat/:roomId, error: ${e}`);
+        res.status(500).json({ success: false, message: "Server Error!"});
+        return;
+    }
+});
+
 
 
 
