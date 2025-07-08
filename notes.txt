@@ -43,3 +43,6 @@
     }));
     <--// 
 
+
+* In my ws/index.ts , currently i am first sending any new msg to DB then broadcasting : slow 
+                    Opitmal Approach: Store it in a queue, broadcast the message while queue gets to db asynchronously
