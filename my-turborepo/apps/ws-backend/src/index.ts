@@ -14,7 +14,14 @@ interface User {
     ws: WebSocket
 }
 
+interface ChatQueueItems {
+    message: string,
+    roomId: number,
+    userId: string
+}
+
 const users: User[] = [];
+const chatQueue: ChatQueueItems[] = [];
 
 function verifyToken(token: string): string | null{
     // verify token using JWT
@@ -31,6 +38,34 @@ function verifyToken(token: string): string | null{
         return null;
     }
 }
+
+// asynchronous function to put chatQueue to DB in background
+async function processChatQueue(){
+    // get the chat from chatQueue
+    while(true){
+        if(chatQueue.length > 0){
+            const chat = chatQueue.shift(); // returns the first el. of the array
+            // put this chat into db
+            try {
+                await prismaClient.chat.create({
+                    data: {
+                        message: chat?.message as unknown as string,
+                        roomId: chat?.roomId as unknown as number,
+                        userId: chat?.userId as unknown as string
+                    }
+                })
+            } catch (error) {
+                console.warn(`Chat into DB Failed! Last Chat Message Tried: ${chat?.message} by userId: ${chat?.userId}`);
+            }
+        }
+        else{ // if chatQueue is empty, pause to avoid busy-waiting
+            await new Promise(res => setTimeout(res,1000));
+        }
+    }
+}
+
+// start the processChatQueue once when the server starts
+processChatQueue();
 
 wss.on("connection", function connection (ws,request){
     // user connect hua hain, exectue below steps:
@@ -139,12 +174,10 @@ wss.on("connection", function connection (ws,request){
         
             // now ,send the message in the room's db and also to other user's in the same room
             try {
-                await prismaClient.chat.create({
-                    data: {
-                        message,
-                        room: { connect: { id: room.id } },   // assuming roomId is string
-                        user: { connect: { id: user.userId } }
-                    }
+                chatQueue.push({
+                    message,
+                    roomId: room.id,
+                    userId: user.userId
                 });
             } catch (err) {
                 console.error("Failed to persist chat to DB:", err);
