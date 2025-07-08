@@ -167,15 +167,49 @@ wss.on("connection", function connection (ws,request){
         }
         
         if(parsedData.type === "leave_room"){
-            //get this user's room[] and remove this room from there
-            const roomId = parsedData.roomId;
+            const {roomId} = parsedData;
             if(!roomId){
-                console.warn("Failed to leave room! No roomId received");
+                console.warn(`missing field in Payload: roomId required!`);
                 return;
             }
+            const roomSlug = roomId;
+            // check if this room exists
+            const room = await prismaClient.room.findFirst({ where: {slug: roomSlug}});
+            if(!room){
+                console.warn(`Request Aborted, No room with name ${roomSlug} exists in the DB`);
+                return;
+            }
+            // check if this user is part of the room
+            const member = user.rooms.includes(roomSlug);
+            if(!member){
+                console.warn(`User ${user.userId} tried to leave room "${roomSlug}" they aren't part of.`);
+                return;
+            }
+            // check if it's the admin who wants to leave/end the room
+            const isAdmin = room.adminId === user.userId;
+            if(isAdmin){
+                // clear the chat from database, clear the room from database, remove the room from all user' []
+                
+                const chatDelete =  await prismaClient.chat.deleteMany({
+                    where: {roomId: room.id}
+                })
 
-            user.rooms = user.rooms.filter(r => r !== parsedData.roomId);
-            console.log(`User ${user.userId} has left the room ${parsedData.roomId}`);
+                if(chatDelete){
+                    console.log(`deleted all chats from database of this room`);
+                    await prismaClient.room.delete({
+                        where: {id: room.id}
+                    })
+                }
+
+                users.forEach(u =>{
+                    u.rooms = u.rooms.filter(r => r!== roomSlug);
+                })
+            }else{
+                // Just remove from this user's room
+                user.rooms = user.rooms.filter(r => r !== roomSlug);
+                console.log(`User ${user.userId} left room "${roomSlug}"`);
+            }
+            
         }
     })
 
