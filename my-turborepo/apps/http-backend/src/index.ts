@@ -157,6 +157,27 @@ app.post("/api/createroom",middleware, async (req: AuthenticatedRequest,res: Res
         console.log("error at /api/createRoom, error : "+e);
         res.status(500).json({success: false, message: "Server Down"});
     }
+});
+
+app.get("/api/chat/:roomId", async (req,res)=>{
+    const roomId = Number (req.params.roomId);
+    if(!roomId){
+        console.warn(`error at /api/chat/:roomId, error: No RoomId received!`);
+    }
+    try{
+        const messages = await prismaClient.chat.findMany({
+            where: { roomId: roomId },
+            take: 50,
+            orderBy: {
+                id: "desc"
+            }
+        });
+        res.json({ messages});
+    }catch(e){
+        console.warn(`error at /api/chat/:roomId, error: ${e}`);
+    }
+    
+
 })
 
 
