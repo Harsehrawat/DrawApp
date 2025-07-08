@@ -65,7 +65,7 @@ wss.on("connection", function connection (ws,request){
     })
     
     // now handle different operations for this user ..
-    ws.on("message", function message (data){
+    ws.on("message",async function message (data){
         // the structure of data would be : {type, roomId, message (if type === 'chat') };
         let parsedData;
         if(typeof data !== "string"){
@@ -82,39 +82,90 @@ wss.on("connection", function connection (ws,request){
 
         if(parsedData.type === "join_room"){
             // get the room_Id, put this room_id in his users' room 
-            const roomId = parsedData.roomId;
-            if(!roomId){
-                console.warn("Failed to join room! No roomId received");
+            const roomSlug = parsedData.roomId;
+            if(!roomSlug){
+                console.warn(`missing field in payload: roomId required`);
                 return;
             }
-            // prevent duplicate room joins
-            if(!user.rooms.includes(roomId)){
-                user?.rooms.push(roomId);
-                console.log(`User ${user.userId} has joined the room ${roomId}`);
+            const room = await prismaClient.room.findUnique({
+                where: {slug: roomSlug}
+            })
+            // Scenerio 1: roomSlug is new to room DB 
+            if(!room){
+                // add room to DB
+                try {
+                    await prismaClient.room.create({
+                        data:{
+                            slug: roomSlug,
+                            adminId: user.userId
+                        }
+                    })
+                    console.log(`roomSlug ${roomSlug} successfully stored in the Database`);
+                } catch (error) {
+                    console.warn(`Failed in storing the valid roomSlug to the DB, error: ${error}`);
+                    return;
+                }
+            }
+            // Scenerio 2: roomSlug already exists in the room DB
+            if(!user.rooms.includes(roomSlug)){
+                user.rooms.push(roomSlug);
+                console.log(`User ${user.userId} has joined the room ${roomSlug}`);
             }
             
         }
         if(parsedData.type === "chat"){
-            // get his message, broadcast to all other user with same roomId
-            // but first: verify if any room with this roomId exists in this user (i.e. the user is himself part of this room or not)
-            const availability = user.rooms.includes(parsedData.roomId);
-            if(!availability){
-                console.warn(`User ${user.userId} Attempted to send message to ${parsedData.roomId} which he himself is not part of!`);
-                return null;
+            const { message } = parsedData;
+            const roomSlug = parsedData.roomId;
+            if(!roomSlug || !message){
+                console.warn( !roomSlug ? `missing field in Payload: required roomId` : `missing field in Payload: required message`);
+                return;
             }
-            // valid availability : broadcase to all other user w/ same roomId
-            users.forEach(otherUsers =>{
-                if( otherUsers.ws !== ws && otherUsers.rooms.includes(parsedData.roomId) ){
-                    otherUsers.ws.send(JSON.stringify({
+
+            // verify if this room exists in the db
+            const room = await prismaClient.room.findUnique({
+                where: {slug: roomSlug}
+            });
+            if(!room){
+                console.warn(`Failed to chat as no database found no existing room with roomSlug: ${roomSlug}`);
+                return;
+            }
+
+            // user should be himself in same room to be able to broadcast a message
+            const isInRoom = user.rooms.includes(roomSlug);
+            if (!isInRoom) {
+                console.warn(`User ${user.userId} tried to message room ${roomSlug} without being in it.`);
+                return;
+            }
+        
+            // now ,send the message in the room's db and also to other user's in the same room
+            try {
+                await prismaClient.chat.create({
+                    data: {
+                        message,
+                        room: { connect: { id: room.id } },   // assuming roomId is string
+                        user: { connect: { id: user.userId } }
+                    }
+                });
+            } catch (err) {
+                console.error("Failed to persist chat to DB:", err);
+                return;
+            }
+        
+            // STEP 2: Broadcast to other users in the room
+            users.forEach(otherUser => {
+                if (otherUser.rooms.includes(roomSlug)) {
+                    otherUser.ws.send(JSON.stringify({
                         type: "chat",
-                        roomId: parsedData.roomId,
+                        roomSlug,
                         userId: user.userId,
-                        message: parsedData.message
-                    }))
+                        message
+                    }));
                 }
-            })
-            console.log(`User ${user.userId} sent a new message to ${parsedData.roomId}`);
+            });
+        
+            console.log(`User ${user.userId} sent and saved message to room ${roomSlug}`);
         }
+        
         if(parsedData.type === "leave_room"){
             //get this user's room[] and remove this room from there
             const roomId = parsedData.roomId;
@@ -127,5 +178,17 @@ wss.on("connection", function connection (ws,request){
             console.log(`User ${user.userId} has left the room ${parsedData.roomId}`);
         }
     })
-}
-)
+
+    ws.on("close", () => {
+        const index = users.findIndex(u => u.ws === ws);
+        if (index !== -1) {
+            const disconnectedUser = users[index];
+            console.log(`User ${disconnectedUser?.userId} disconnected`);
+            users.splice(index, 1);
+        } else {
+            console.log("Disconnected socket not found in user list.");
+        }
+    });
+});
+
+
