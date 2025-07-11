@@ -8,7 +8,7 @@ import jwt  from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import { middleware, AuthenticatedRequest } from "./middleware.js";
 import { Request,Response,NextFunction } from "express";
-import { success } from "zod/v4";
+import { string, success } from "zod/v4";
 
 const app = express();
 app.use(express.json());
@@ -160,27 +160,46 @@ app.post("/api/createroom",middleware, async (req: AuthenticatedRequest,res: Res
     }
 });
 
-app.get("/api/chat/:roomId", async (req,res)=>{
-    const roomId = Number (req.params.roomId);
-    if(!roomId){
-        console.warn(`error at /api/chat/:roomId, error: No RoomId received!`);
-        res.status(404).json({ success: false, message: `This Room Doesn't Exist`});
+app.get("/api/get_roomId/:roomSlug", async (req,res)=>{
+    // get the roomSLug and return the corresponding roomId of the room
+    const roomSlug = req.params.roomSlug;
+    if(!roomSlug){
+        res.status(400).json({ success: false, message: `error at /api/get_roomId/:roomSlug, error: No roomSlug provided`});
         return;
     }
-    try{
-        const messages = await prismaClient.chat.findMany({
-            where: { roomId: roomId },
-            take: 50,
-            orderBy: {
-                id: "desc"
-            }
-        });
-        res.status(200).json({success: true, messages});
+    const room = await prismaClient.room.findUnique({ where: { slug: roomSlug}});
+    if(!room){
+        console.warn(`'error at /api/get_roomId/:roomSlug, error: No such room found with roomSlug: ${roomSlug}`);
+        res.status(400).json({ success: false, message: `Invalid Input, This Room Doesn't Exist`});
         return;
-    }catch(e){
-        console.warn(`error at /api/chat/:roomId, error: ${e}`);
     }
-});
+    const roomId = room.id;
+    res.status(200).json({success: true, roomId });
+    return;
+})
+
+// app.get("/api/chat/:roomId", async (req,res)=>{
+//     const roomId = Number (req.params.roomId);
+//     if(!roomId){
+//         console.warn(`error at /api/chat/:roomId, error: No RoomId received!`);
+//         res.status(404).json({ success: false, message: `This Room Doesn't Exist`});
+//         return;
+//     }
+//     try{
+//         const messages = await prismaClient.chat.findMany({
+//             where: { roomId: roomId },
+//             take: 50,
+//             orderBy: {
+//                 id: "desc"
+//             }
+//         });
+//         res.status(200).json({success: true, messages});
+//         return;
+//     }catch(e){
+//         console.warn(`error at /api/chat/:roomId, error: ${e}`);
+//         res.status(500).json({success: false,message: "Internal Server Error"});
+//     }
+// });
 
 app.get("/api/chat/:roomSlug", async (req,res)=>{
     const roomSlug = req.params.roomSlug;
@@ -195,15 +214,23 @@ app.get("/api/chat/:roomSlug", async (req,res)=>{
         res.status(400).json({ success: false, message: `Invalid Input, This Room Doesn't Exist`});
         return;
     }
+    console.log(`For given roomSlug: ${roomSlug}, fetched corresponding roomId is: ${room.id} `);
     try{
         const messages = await prismaClient.chat.findMany({
             where: { roomId: room.id },
             take: 50,
             orderBy: {
-                id: "desc"
+                id: "asc"
+            },
+            include: {
+                user: {
+                    select: {
+                        name: true
+                    }
+                }
             }
         });
-        res.status(200).json({success: true, messages});
+        res.status(200).json({ success: true, data: { messages } });
         return;
     }catch(e){
         console.warn(`error at /api/chat/:roomId, error: ${e}`);
