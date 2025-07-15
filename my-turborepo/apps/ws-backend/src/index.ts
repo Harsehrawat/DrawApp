@@ -117,7 +117,7 @@ wss.on("connection", function connection (ws,request){
 
         if(parsedData.type === "join_room"){
             // get the room_Id, put this room_id in his users' room 
-            const roomSlug = parsedData.roomId;
+            const roomSlug = parsedData.roomSlug;
             if(!roomSlug){
                 console.warn(`missing field in payload: roomId required`);
                 return;
@@ -150,7 +150,7 @@ wss.on("connection", function connection (ws,request){
         }
         if(parsedData.type === "chat"){
             const { message } = parsedData;
-            const roomSlug = parsedData.roomId;
+            const roomSlug = parsedData.roomSlug;
             if(!roomSlug || !message){
                 console.warn( !roomSlug ? `missing field in Payload: required roomId` : `missing field in Payload: required message`);
                 return;
@@ -200,12 +200,11 @@ wss.on("connection", function connection (ws,request){
         }
         
         if(parsedData.type === "leave_room"){
-            const {roomId} = parsedData;
-            if(!roomId){
+            const roomSlug = parsedData.roomSlug;
+            if(!roomSlug){
                 console.warn(`missing field in Payload: roomId required!`);
                 return;
             }
-            const roomSlug = roomId;
             // check if this room exists
             const room = await prismaClient.room.findFirst({ where: {slug: roomSlug}});
             if(!room){
